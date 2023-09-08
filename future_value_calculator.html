@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>将来価値計算機</title>
+    <link 
+href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-rc.0/css/select2.min.css" 
+rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script 
+src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-rc.0/js/select2.min.js"></script>
+</head>
+
+<body>
+    <h1>将来価値計算機</h1>
+    <form id="calculator-form">
+        <label for="monthly-deposit">毎月の積み立て額:</label>
+        <select id="monthly-deposit" class="select2" required>
+            <option value="10000">10,000円</option>
+            <option value="20000">20,000円</option>
+            <option value="30000">30,000円</option>
+            <option value="50000">50,000円</option>
+            <option value="70000">70,000円</option>
+            <option value="100000">100,000円</option>
+            <!-- 他のオプションを追加できます -->
+        </select>
+        <br>
+        <label for="annual-interest-rate">年間利率 (%):</label>
+        <select id="annual-interest-rate" class="select2" required>
+            <option value="2">2%</option>
+            <option value="3">3%</option>
+            <option value="5">5%</option>
+            <option value="7">7%</option>
+            <option value="10">10%</option>
+            <!-- 他のオプションを追加できます -->
+        </select>
+        <br>
+        <label for="investment-period">積み立て期間 (年):</label>
+        <select id="investment-period" class="select2" required>
+            <option value="1">1年</option>
+            <option value="3">3年</option>
+            <option value="5">5年</option>
+            <option value="10">10年</option>
+            <option value="15">1年</option>
+            <option value="20">20年</option>
+            <option value="30">30年</option>
+            <option value="50">50年</option>
+            <!-- 他のオプションを追加できます -->
+        </select>
+        <br>
+        <input type="submit" value="計算">
+    </form>
+    <div id="results">
+        <h2>結果:</h2>
+        <p id="monthly-deposit-result"></p>
+        <p id="annual-interest-rate-result"></p>
+        <p id="investment-period-result"></p>
+        <p id="base-total-result"></p>
+        <p id="total-amount-result"></p>
+        <p id="interest-total-result"></p>
+        <p id="yield-rate-result"></p>
+    </div>
+    <canvas id="chart"></canvas>
+
+    <script>
+        function formatNumberWithCommas(number) {
+            return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, 
+",");
+        }
+
+        // Select2を初期化
+        $(".select2").select2({
+            width: '100%', // プルダウンメニューの幅を100%に設定
+        });
+
+        
+document.getElementById("calculator-form").addEventListener("submit", 
+function (event) {
+            event.preventDefault();
+
+            // 入力値の取得
+            const monthlyDeposit = 
+parseFloat($("#monthly-deposit").val());
+            const annualInterestRate = 
+parseFloat($("#annual-interest-rate").val());
+            const investmentPeriod = 
+parseInt($("#investment-period").val());
+
+            // 月利率を計算
+            const monthlyInterestRate = annualInterestRate / 100 / 12;
+
+            // 積み立て期間ごとに元本と利息を計算
+            let totalAmount = 0;
+            let baseTotal = 0;
+            let interestTotal = 0;
+            for (let month = 1; month <= investmentPeriod * 12; month++) {
+                baseTotal += monthlyDeposit;
+                totalAmount += monthlyDeposit;
+                totalAmount *= (1 + monthlyInterestRate);
+                interestTotal = totalAmount - baseTotal;
+            }
+
+            // 結果を表示
+            document.getElementById("monthly-deposit-result").textContent 
+= `毎月の積み立て額: 
+${formatNumberWithCommas(monthlyDeposit.toFixed(2))}円`;
+            
+document.getElementById("annual-interest-rate-result").textContent = 
+`年間利率: ${annualInterestRate.toFixed(2)}%`;
+            
+document.getElementById("investment-period-result").textContent = 
+`積み立て期間: ${investmentPeriod}年`;
+            document.getElementById("base-total-result").textContent = 
+`積み立て期間後の元本の合計: 
+${formatNumberWithCommas(baseTotal.toFixed(2))}円`;
+            document.getElementById("total-amount-result").textContent = 
+`積み立て期間後の元本と利息の合計: 
+${formatNumberWithCommas(totalAmount.toFixed(2))}円`;
+            document.getElementById("interest-total-result").textContent = 
+`積み立て期間後の利息の合計: 
+${formatNumberWithCommas(interestTotal.toFixed(2))}円`;
+            document.getElementById("yield-rate-result").textContent = 
+`利回り（元本に対する割合）: ${(totalAmount / baseTotal - 
+1).toFixed(2)}%`;
+
+            // グラフを描画
+            const years = Array.from({ length: investmentPeriod }, (_, i) 
+=> i + 1);
+            const totalAmounts = years.map(year => {
+                let total = 0;
+                for (let month = 1; month <= year * 12; month++) {
+                    total += monthlyDeposit;
+                    total *= (1 + monthlyInterestRate);
+                }
+                return total / 10000; // 単位を1万円に変更
+            });
+
+            const baseTotals = years.map(year => {
+                let base = 0;
+                for (let month = 1; month <= year * 12; month++) {
+                    base += monthlyDeposit;
+                }
+                return base / 10000; // 単位を1万円に変更
+            });
+
+            const ctx = document.getElementById('chart').getContext('2d');
+            const chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: years,
+                    datasets: [{
+                        label: '元本と利息の合計',
+                        data: totalAmounts,
+                        borderColor: 'rgb(255, 99, 132)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        fill: true
+                    }, {
+                        label: '元本の合計',
+                        data: baseTotals,
+                        borderColor: 'rgb(54, 162, 235)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                        fill: true
+                    }]
+                },
+                options: {
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: '年'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: '1万円'
+                            },
+                            ticks: {
+                                callback: function (value) {
+                                    return formatNumberWithCommas(value);
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>
+
+
